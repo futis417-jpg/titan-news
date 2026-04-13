@@ -1,15 +1,15 @@
-name: Titan News Bot 18.5
+name: Titan Omnipresencia 25.0
 
 on:
   schedule:
-    - cron: '*/15 * * * *' # Cada 15 minutos
-  workflow_dispatch: # Botón para lanzarlo a mano
+    - cron: '*/15 * * * *' # Cada 15 minutos (Nivel máximo estable de GitHub)
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Permite guardar la memoria de noticias
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -19,19 +19,19 @@ jobs:
         with:
           python-version: '3.9'
 
-      - name: Install
-        run: pip install -r requirements.txt
+      - name: Install Dependencies
+        run: pip install requests beautifulsoup4 lxml
 
-      - name: Run Bot
+      - name: Run Imperial Bot
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
         run: python news_bot.py
 
-      - name: Save Memory
+      - name: Commit & Push History
         run: |
-          git config --global user.name 'Titan-Bot'
-          git config --global user.email 'bot@titan.com'
-          git add last_news_id.txt
-          git commit -m "Actualizar ID de noticia" || exit 0
+          git config --global user.name 'Titan-Omni'
+          git config --global user.email 'omni@titan.com'
+          git add titan_history.json
+          git commit -m "Update news history cache" || exit 0
           git push
