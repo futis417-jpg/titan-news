@@ -1,35 +1,37 @@
-name: Titan News Bot
+name: Titan News Bot 18.5
 
 on:
   schedule:
-    - cron: '*/15 * * * *' # Se ejecuta cada 15 minutos (mínimo recomendado en GitHub gratis)
-  workflow_dispatch: # Permite ejecutarlo a mano para probar
+    - cron: '*/15 * * * *' # Cada 15 minutos
+  workflow_dispatch: # Botón para lanzarlo a mano
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Permite guardar la memoria de noticias
     steps:
-      - name: Checkout código
+      - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Configurar Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Instalar librerías
+      - name: Install
         run: pip install -r requirements.txt
 
-      - name: Ejecutar Bot
+      - name: Run Bot
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
         run: python news_bot.py
 
-      - name: Guardar memoria (Commit last_news_id.txt)
+      - name: Save Memory
         run: |
           git config --global user.name 'Titan-Bot'
           git config --global user.email 'bot@titan.com'
           git add last_news_id.txt
-          git commit -m "Actualizar última noticia" || exit 0
+          git commit -m "Actualizar ID de noticia" || exit 0
           git push
