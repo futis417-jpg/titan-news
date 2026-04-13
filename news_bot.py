@@ -50,9 +50,9 @@ def obtener_noticia_completa():
                 "imagen": None
             }
             
-            # 2. Scrapear la web original para buscar la imagen
+            # 2. Scrapear la web original para buscar la imagen principal
             try:
-                # Obtenemos la URL original (Google RSS a veces la encripta, esto la decodifica)
+                # Obtenemos la URL original (Google RSS a veces la encripta)
                 response_web = requests.get(noticia["link"], timeout=10)
                 soup_web = BeautifulSoup(response_web.content, 'html.parser')
                 
@@ -64,7 +64,7 @@ def obtener_noticia_completa():
                     noticia["imagen"] = meta_imagen.get('content')
                     print("✅ Imagen capturada con éxito.")
                 else:
-                    print("📭 Imagen principal no encontrada. Se enviará solo texto.")
+                    print("📭 Imagen principal no encontrada en la web original.")
                     
             except Exception as e:
                 print(f"⚠️ Error capturando imagen: {e}")
@@ -87,6 +87,7 @@ def enviar_a_telegram(noticia):
     )
     
     # Preparamos el botón (Inline Keyboard)
+    # IMPORTANTE: Aquí estaba el error. Usamos 'teclado' en todo el proceso.
     teclado = {
         "inline_keyboard": [
             [
@@ -103,20 +104,24 @@ def enviar_a_telegram(noticia):
             "photo": noticia["imagen"],
             "caption": mensaje,
             "parse_mode": "Markdown",
-            "reply_markup": keyboard
+            "reply_markup": teclado # Corregido: keyboard -> teclado
         }
     else:
-        # Si no hay imagen, enviamos solo texto
+        # Si no hay imagen, enviamos solo texto con vista previa desactivada (opcional)
         url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
         payload = {
             "chat_id": CHANNEL_ID,
             "text": mensaje,
             "parse_mode": "Markdown",
-            "reply_markup": keyboard,
+            "reply_markup": teclado, # Corregido: keyboard -> teclado
             "disable_web_page_preview": False
         }
     
-    requests.post(url, json=payload)
+    try:
+        r = requests.post(url, json=payload)
+        r.raise_for_status()
+    except Exception as e:
+        print(f"❌ Fallo al enviar a Telegram: {e}")
 
 # ==============================================================================
 # 🚀 4. INICIADOR PRINCIPAL CON MEMORIA
@@ -142,6 +147,6 @@ if __name__ == "__main__":
                 f.write(info_noticia["id"])
             print(f"✅ ¡Noticia publicada con éxito!: {info_noticia['titulo']}")
         else:
-            print("😴 Esta noticia ya la hemos publicado. No se repite.")
+            print("😴 Esta noticia ya la hemos publicado. No se repite para evitar spam.")
     else:
         print("📭 No se han encontrado noticias nuevas en este momento.")
