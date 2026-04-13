@@ -5,148 +5,100 @@ import random
 import time
 from datetime import datetime
 
-# ==============================================================================
-# ⚙️ 1. CONFIGURACIÓN DEL IMPERIO (SECRETOS GITHUB)
-# ==============================================================================
+# ==========================================
+# ⚙️ 1. CONFIGURACIÓN (SECRETOS GITHUB)
+# ==========================================
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHANNEL_ID = os.getenv("CHANNEL_ID")
+TEXTO_BOTON = "🔗 LEER NOTICIA COMPLETA"
 
-# TÍTULO DEL BOTÓN
-TEXTO_BOTON = "🔗 LEER ARTÍCULO COMPLETO"
-
-# LISTA DE CATEGORÍAS Y TEMAS (SELECCIÓN ALEATORIA)
+# CATEGORÍAS MEJORADAS
 CATEGORIAS = {
     "Deportes": "https://news.google.com/rss/search?q=deportes+when:1h&hl=es-ES&gl=ES&ceid=ES:es",
-    "Fútbol": "https://news.google.com/rss/search?q=futbol+when:1h&hl=es-ES&gl=ES&ceid=ES:es",
-    "Fórmula 1": "https://news.google.com/rss/search?q=f1+when:1h&hl=es-ES&gl=ES&ceid=ES:es",
-    "Bolsa de Valores": "https://news.google.com/rss/search?q=bolsa+española+when:1h&hl=es-ES&gl=ES&ceid=ES:es",
+    "Fútbol": "https://news.google.com/rss/search?q=futbol+españa+when:1h&hl=es-ES&gl=ES&ceid=ES:es",
+    "Fórmula 1": "https://news.google.com/rss/search?q=f1+noticias+when:1h&hl=es-ES&gl=ES&ceid=ES:es",
+    "Bolsa y Finanzas": "https://news.google.com/rss/search?q=ibex35+when:1h&hl=es-ES&gl=ES&ceid=ES:es",
     "Tecnología": "https://news.google.com/rss/search?q=tecnologia+when:1h&hl=es-ES&gl=ES&ceid=ES:es",
     "Inteligencia Artificial": "https://news.google.com/rss/search?q=ia+noticias+when:1h&hl=es-ES&gl=ES&ceid=ES:es",
     "Mercado Inmobiliario": "https://news.google.com/rss/search?q=vivienda+noticias+when:1h&hl=es-ES&gl=ES&ceid=ES:es",
-    "Criptomonedas": "https://news.google.com/rss/search?q=cripto+when:1h&hl=es-ES&gl=ES&ceid=ES:es"
+    "Criptomonedas": "https://news.google.com/rss/search?q=bitcoin+when:1h&hl=es-ES&gl=ES&ceid=ES:es"
 }
 
-# ==============================================================================
-# 🕵️‍♂️ 2. MOTOR DE SCRAPING CON CAPTURA DE IMAGEN
-# ==============================================================================
-def obtener_noticia_completa():
-    # Elegimos una categoría al azar
-    categoria, url_rss = random.choice(list(CATEGORIAS.items()))
-    print(f"🔍 Buscando noticia de la categoría: {categoria.upper()}")
+# ==========================================
+# 🕵️‍♂️ 2. EXTRACTOR DE NOTICIAS E IMÁGENES
+# ==========================================
+def obtener_noticia():
+    cat, url_rss = random.choice(list(CATEGORIAS.items()))
+    print(f"🔍 Explorando: {cat}")
     
     try:
-        # 1. Leer RSS
-        response = requests.get(url_rss, timeout=15)
-        soup_rss = BeautifulSoup(response.content, features="xml")
-        items = soup_rss.find_all('item')
+        r = requests.get(url_rss, timeout=15)
+        soup = BeautifulSoup(r.content, features="xml")
+        item = soup.find('item')
         
-        if items:
-            # Seleccionamos la más reciente
-            noticia = {
-                "titulo": items[0].title.text,
-                "link": items[0].link.text,
-                "id": items[0].guid.text,
-                "categoria": categoria.upper(),
+        if item:
+            data = {
+                "titulo": item.title.text,
+                "link": item.link.text,
+                "id": item.guid.text,
+                "categoria": cat.upper(),
                 "imagen": None
             }
             
-            # 2. Scrapear la web original para buscar la imagen principal
+            # Intentar capturar imagen de la web original
             try:
-                # Obtenemos la URL original (Google RSS a veces la encripta)
-                response_web = requests.get(noticia["link"], timeout=10)
-                soup_web = BeautifulSoup(response_web.content, 'html.parser')
-                
-                # Buscamos la imagen principal usando OpenGraph o Twitter Card
-                meta_imagen = soup_web.find('meta', property='og:image') or \
-                              soup_web.find('meta', attrs={'name': 'twitter:image'})
-                
-                if meta_imagen:
-                    noticia["imagen"] = meta_imagen.get('content')
-                    print("✅ Imagen capturada con éxito.")
-                else:
-                    print("📭 Imagen principal no encontrada en la web original.")
-                    
-            except Exception as e:
-                print(f"⚠️ Error capturando imagen: {e}")
-                
-            return noticia
-            
+                rw = requests.get(data["link"], timeout=10)
+                sw = BeautifulSoup(rw.content, 'html.parser')
+                img = sw.find('meta', property='og:image') or sw.find('meta', attrs={'name': 'twitter:image'})
+                if img:
+                    data["imagen"] = img.get('content')
+            except:
+                pass
+            return data
     except Exception as e:
-        print(f"❌ Error en el scraper RSS: {e}")
+        print(f"❌ Error Scraper: {e}")
     return None
 
-# ==============================================================================
-# 🎮 3. MOTOR DE PUBLICACIÓN (FORMATO PREMIUM CON IMAGEN Y BOTÓN)
-# ==============================================================================
-def enviar_a_telegram(noticia):
-    # Definimos el formato visual del mensaje
+# ==========================================
+# 🎮 3. ENVÍO A TELEGRAM
+# ==========================================
+def enviar_telegram(n):
+    # Limpieza del Token por seguridad
+    tkn = TOKEN.strip()
+    
     mensaje = (
-        f"🔥 *ÚLTIMA HORA | {noticia['categoria']}*\n\n"
-        f"📌 `{noticia['titulo']}`\n\n"
-        f"🤖 _Enviado automáticamente por Titán News Bot_"
+        f"🔥 *ÚLTIMA HORA | {n['categoria']}*\n\n"
+        f"📌 `{n['titulo']}`\n\n"
+        f"🤖 _Enviado por Titán News v18.5_"
     )
     
-    # Preparamos el botón (Inline Keyboard)
-    # IMPORTANTE: Aquí estaba el error. Usamos 'teclado' en todo el proceso.
-    teclado = {
-        "inline_keyboard": [
-            [
-                {"text": TEXTO_BOTON, "url": noticia["link"]}
-            ]
-        ]
-    }
+    markup = {"inline_keyboard": [[{"text": TEXTO_BOTON, "url": n["link"]}]]}
     
-    # Si tenemos imagen, enviamos como foto con pie de foto
-    if noticia["imagen"]:
-        url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
-        payload = {
-            "chat_id": CHANNEL_ID,
-            "photo": noticia["imagen"],
-            "caption": mensaje,
-            "parse_mode": "Markdown",
-            "reply_markup": teclado # Corregido: keyboard -> teclado
-        }
+    if n["imagen"]:
+        url = f"https://api.telegram.org/bot{tkn}/sendPhoto"
+        pay = {"chat_id": CHANNEL_ID, "photo": n["imagen"], "caption": mensaje, "parse_mode": "Markdown", "reply_markup": markup}
     else:
-        # Si no hay imagen, enviamos solo texto con vista previa desactivada (opcional)
-        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-        payload = {
-            "chat_id": CHANNEL_ID,
-            "text": mensaje,
-            "parse_mode": "Markdown",
-            "reply_markup": teclado, # Corregido: keyboard -> teclado
-            "disable_web_page_preview": False
-        }
+        url = f"https://api.telegram.org/bot{tkn}/sendMessage"
+        pay = {"chat_id": CHANNEL_ID, "text": mensaje, "parse_mode": "Markdown", "reply_markup": markup}
     
-    try:
-        r = requests.post(url, json=payload)
-        r.raise_for_status()
-    except Exception as e:
-        print(f"❌ Fallo al enviar a Telegram: {e}")
+    requests.post(url, json=pay)
 
-# ==============================================================================
-# 🚀 4. INICIADOR PRINCIPAL CON MEMORIA
-# ==============================================================================
+# ==========================================
+# 🚀 4. EJECUCIÓN PRINCIPAL
+# ==========================================
 if __name__ == "__main__":
     if not TOKEN or not CHANNEL_ID:
-        print("❌ Faltan los Secretos en GitHub (TELEGRAM_TOKEN o CHANNEL_ID)")
+        print("❌ Faltan SECRETOS en GitHub.")
         exit(1)
 
-    info_noticia = obtener_noticia_completa()
-    
-    if info_noticia:
-        archivo_memoria = "last_news_id.txt"
-        last_id = ""
+    noticia = obtener_noticia()
+    if noticia:
+        db = "last_news_id.txt"
+        old_id = open(db).read().strip() if os.path.exists(db) else ""
         
-        if os.path.exists(archivo_memoria):
-            with open(archivo_memoria, "r") as f:
-                last_id = f.read().strip()
-
-        if info_noticia["id"] != last_id:
-            enviar_a_telegram(info_noticia)
-            with open(archivo_memoria, "w") as f:
-                f.write(info_noticia["id"])
-            print(f"✅ ¡Noticia publicada con éxito!: {info_noticia['titulo']}")
+        if noticia["id"] != old_id:
+            enviar_telegram(noticia)
+            with open(db, "w") as f: f.write(noticia["id"])
+            print(f"✅ Publicado: {noticia['titulo']}")
         else:
-            print("😴 Esta noticia ya la hemos publicado. No se repite para evitar spam.")
-    else:
-        print("📭 No se han encontrado noticias nuevas en este momento.")
+            print("😴 Sin noticias nuevas.")
